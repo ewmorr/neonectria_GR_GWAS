@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=sf2
-#SBATCH --output=logs/%x_%A_%a.out
-#SBATCH --error=logs/%x_%A_%a.err
+#SBATCH --output=sweep_array.out
+##SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --array=0-23%8
 #SBATCH --cpus-per-task=1
 #SBATCH --exclude=node117,node118
