@@ -17,4 +17,4 @@ tig=$(basename "$freq" _pilon.sf2)
 
 echo "Starting $tig"
 
-SweepFinder2 -lg 12500 $freq SpecFile out_${tig}.txt
+SweepFinder2 -lg 1000 $freq SpecFile out_${tig}.txt
