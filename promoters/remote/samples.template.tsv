@@ -1,0 +1,8 @@
+S1	/path/to/S1_R1.trimmed.fastq.gz	/path/to/S1_R2.trimmed.fastq.gz
+S2	/path/to/S2_R1.trimmed.fastq.gz	/path/to/S2_R2.trimmed.fastq.gz
+S3	/path/to/S3_R1.trimmed.fastq.gz	/path/to/S3_R2.trimmed.fastq.gz
+S4	/path/to/S4_R1.trimmed.fastq.gz	/path/to/S4_R2.trimmed.fastq.gz
+S5	/path/to/S5_R1.trimmed.fastq.gz	/path/to/S5_R2.trimmed.fastq.gz
+S6	/path/to/S6_R1.trimmed.fastq.gz	/path/to/S6_R2.trimmed.fastq.gz
+S7	/path/to/S7_R1.trimmed.fastq.gz	/path/to/S7_R2.trimmed.fastq.gz
+S8	/path/to/S8_R1.trimmed.fastq.gz	/path/to/S8_R2.trimmed.fastq.gz
