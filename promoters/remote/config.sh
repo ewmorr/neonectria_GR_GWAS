@@ -20,7 +20,7 @@ export MAX_INTRON=3000
 # EDIT to match your cluster: how to get hisat2, samtools, stringtie on PATH
 activate_tools(){
     module purge
-    module load linuxbrew/colsa                    # as in LFMM/sweepfinder2_scan.slurm; hisat2 lives here?
+    module load anaconda/colsa                    # as in LFMM/sweepfinder2_scan.slurm; hisat2 lives here?
     # StringTie and samtools: conda env built by 00_env_setup.sh
     source "$(conda info --base)/etc/profile.d/conda.sh"
     conda activate promoter
