@@ -10,12 +10,19 @@ set -euo pipefail
 source "$SLURM_SUBMIT_DIR/config.sh"
 activate_tools
 cd $WORKDIR; mkdir -p hisat2_index strand_check
-if [ ! -e hisat2_index/Nf.1.ht2 ]; then hisat2-build -p $THREADS $GENOME hisat2_index/Nf > hisat2_index/build.log 2>&1; fi
+echo "start $(date)"
+if [ ! -e hisat2_index/Nf.1.ht2 ]; then echo building index; hisat2-build -p $THREADS $GENOME hisat2_index/Nf > hisat2_index/build.log 2>&1; fi
 read S R1 R2 < <(head -1 $SAMPLES)
-# first 2M pairs (8M lines)
+echo "sample $S: subsampling 2M read pairs"
+# first 2M pairs (8M lines). head closes the pipe early, so zcat gets SIGPIPE (exit 141); that is expected,
+# and under 'set -o pipefail' it would otherwise kill the script silently.
+set +o pipefail
 zcat -f $R1 | head -8000000 > strand_check/sub_1.fq
 zcat -f $R2 | head -8000000 > strand_check/sub_2.fq
+set -o pipefail
+echo "mapping subsample"
 hisat2 -p $THREADS --max-intronlen $MAX_INTRON -x hisat2_index/Nf -1 strand_check/sub_1.fq -2 strand_check/sub_2.fq 2> strand_check/hisat2.log \
   | samtools view -@ 4 -b -o strand_check/sub.bam -
 samtools view -f 2 -F 256 strand_check/sub.bam | python3 "$SLURM_SUBMIT_DIR/check_strand.py" $GFF | tee strand_check/result.txt
+echo "done $(date)"
 rm -f strand_check/sub_1.fq strand_check/sub_2.fq
