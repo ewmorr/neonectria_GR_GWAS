@@ -9,8 +9,8 @@ library(ggrepel)
 #!!!!!!!!!!!!!!!!!!!!!!
 # NOTE that according to ?rTPC::get_ct[min|max] the Sharpe-Schoolfied model 
 # min and max estimates are scaled to 5% of the maximum because the model
-# never intercepts the x. We should use Boatman for the max. Min is zero
-# HOWEVER the SSH model still fits a lot better in some cases especially in 
+# never intercepts the x. We could use Boatman for the max. but min is zero
+# HOWEVER the SSH model still fits a lot better in some cases especially in
 # cases with heavy skew and is probably still giving better estimates here.
 # Maybe this is a case for taking the model avg
 

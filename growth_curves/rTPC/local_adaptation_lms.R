@@ -190,6 +190,13 @@ anova(mod1)
 #Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 #
 
+# rerun this with just Nf for power analysis for new proposal
+modNf = lm(topt ~ MAT, data = d_params.metadata.sp %>% filter(spp == "Nf"))
+qqnorm(residuals(modNf))
+plot(residuals(modNf))
+summary(modNf)
+
+
 mod2 = lme(fixed = topt ~ MAT*spp, random = (~1|state.name), data = d_params.metadata.sp)
 summary(mod2)
 

@@ -1,7 +1,5 @@
 #  Repo for analysis of growth rate data using GWAS approach
 
-# Data dir is "~/GARNAS_neonectria_GR_GWAS"
-
 
 ```
 format_tables_calc_gr.r # processing raw growth rate data and calculation of growth rate

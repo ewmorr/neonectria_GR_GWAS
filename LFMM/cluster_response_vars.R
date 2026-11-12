@@ -1,0 +1,240 @@
+library(ggplot2)
+library(ggtree)
+library(FactoMineR)
+
+###################
+#data
+
+#Read the metadata
+source("growth_curves/make_site_metadata.r")
+#Read the GR data
+d_params = read.csv("data/rTPC/all_fits.params.csv")
+d_params = d_params %>% filter(model_name %in% c("sharpeschoolhigh", "boatman"))
+d_half_max = read.csv("data/rTPC/sharpeschoolhigh_half_max_temps.csv")
+colnames(d_half_max)[c(2,4)] = c("t50low", "t50high")
+# information criteria with weights
+d_ic = read.csv("data/rTPC/d_ic.bestTwo_fits.fit_stats.csv")
+
+iso_names = unique(d_params$iso_name)
+d_params.t = data.frame(
+    iso_name = vector(mode = "character", length = length(iso_names)),
+    rmax = vector(mode = "numeric", length = length(iso_names)),
+    topt = vector(mode = "numeric", length = length(iso_names)),
+    ctmax.ssh = vector(mode = "numeric", length = length(iso_names)),
+    ctmax.boat = vector(mode = "numeric", length = length(iso_names)),
+    ctmax.wt_mean = vector(mode = "numeric", length = length(iso_names)),
+    breadth = vector(mode = "numeric", length = length(iso_names)),
+    skewness = vector(mode = "numeric", length = length(iso_names))
+)
+for(i in 1:length(iso_names)){
+    d_params.t$iso_name[i] = d_params %>% 
+        filter(model_name == "sharpeschoolhigh" & iso_name == iso_names[i]) %>% 
+        pull(iso_name)
+    d_params.t$rmax[i] = d_params %>% 
+        filter(model_name == "sharpeschoolhigh" & iso_name == iso_names[i]) %>% 
+        pull(rmax)
+    d_params.t$topt[i] = d_params %>% 
+        filter(model_name == "sharpeschoolhigh" & iso_name == iso_names[i]) %>% 
+        pull(topt)
+    d_params.t$ctmax.ssh[i] = d_params %>% 
+        filter(model_name == "sharpeschoolhigh" & iso_name == iso_names[i]) %>% 
+        pull(ctmax)
+    d_params.t$ctmax.boat[i] = d_params %>% 
+        filter(model_name == "boatman" & iso_name == iso_names[i]) %>% 
+        pull(ctmax)
+    d_params.t$ctmax.wt_mean[i] = weighted.mean(
+        d_params %>% 
+            filter(iso_name == iso_names[i]) %>% 
+            pull(ctmax), 
+        d_ic %>% 
+            filter(iso_name == iso_names[i]) %>% 
+            pull(weight)
+        )
+    d_params.t$breadth[i] = d_params %>% 
+        filter(model_name == "sharpeschoolhigh" & iso_name == iso_names[i]) %>% 
+        pull(breadth)
+    d_params.t$skewness[i] = d_params %>% 
+        filter(model_name == "sharpeschoolhigh" & iso_name == iso_names[i]) %>% 
+        pull(skewness)
+}
+head(d_params.t)
+
+
+d_params = left_join(d_params.t, d_half_max %>% select(-Topt))
+head(d_params)
+d_params$breadth50 = d_params$t50high - d_params$t50low
+head(d_params)
+
+d_params$Site = sapply(strsplit(d_params$iso_name, " "), "[[", 1)
+d_params$Site[d_params$Site == "ADS2"] = "ADS1"
+d_params$Site[d_params$Site == "MEN2"] = "MEN1"
+d_params$Site[d_params$Site == "MES2"] = "MES1"
+d_params$Site[d_params$Site == "ADN2"] = "ADN1"
+d_params$Site[d_params$Site == "MM"] = "CCM"
+#join the gr stats to metadata
+
+d_params.metadata = left_join(
+    d_params,
+    site_metadata,
+    by = "Site"
+) 
+    
+
+apply(d_params.metadata, 1, FUN=function(x) all(is.na(x)) ) %>% sum
+
+# join to sample level metadata. Just the species in this case
+# sample metadata
+sample_ID_map = read.table("data/sample_metadata/sample_ID_mapping_all_samples_05052022.txt", header = T, sep = "\t")
+colnames(sample_ID_map)[c(3, 5)] = c("iso_name", "spp")
+d_params.metadata.sp = left_join(
+    d_params.metadata,
+    sample_ID_map %>% select(iso_name, spp) %>% unique,
+    by = "iso_name"
+)
+head(d_params.metadata.sp)
+sum(complete.cases(d_params.metadata.sp)) == nrow(d_params.metadata.sp)
+#d_params.metadata.sp[which(!complete.cases(d_params.metadata.sp)),]
+
+########################################################################
+########################Completed data set up###########################
+########################################################################
+d_params.metadata.sp = d_params.metadata.sp %>% filter(spp == "Nf")
+growth_pca = read.csv("data/rTPC/growth_params_PCA.csv")
+d_params.metadata.sp = left_join(d_params.metadata.sp, growth_pca %>% select(iso_name, PC1, PC2))
+rownames(d_params.metadata.sp) = d_params.metadata.sp$iso_name
+
+# topt
+d = dist(d_params.metadata.sp["topt"], method = "euclidean")
+topt.clust = hclust(d, method = "ward.D")
+plot(topt.clust)
+ggtree(topt.clust)
+
+HCPC(d_params.metadata.sp["topt"])
+
+ggtree(topt.clust)  %<+% select(d_params.metadata.sp, iso_name, topt) +
+    geom_tiplab(offset = 2.75, hjust = 0.75) +
+    geom_tippoint(aes(fill = topt), shape = 21, size = 3) +
+    #scale_color_gradient2(low = "#0571b0", mid = "white", high = "#ca0020")
+    scale_fill_gradientn(colors = c("#0571b0", "white", "#ca0020")) +
+    geom_vline(xintercept = -5, linetype = 2)
+
+topt.cut = cutree(topt.clust, 3)
+
+topt.cut.df = data.frame(iso_name = names(topt.cut), clust = topt.cut)
+topt.cut.df$clust.level = vector(mode = "character", length = nrow(topt.cut.df))
+topt.cut.df
+topt.cut.df[topt.cut.df$clust == 1, "clust.level"] = "med"
+topt.cut.df[topt.cut.df$clust == 2, "clust.level"] = "high"
+topt.cut.df[topt.cut.df$clust == 3, "clust.level"] = "low"
+topt.cut.df
+
+write.csv(topt.cut.df, "data/LFMM/topt_clusters.csv", quote = F, row.names = F)
+
+ggplot(
+    left_join(topt.cut.df, d_params.metadata.sp %>% select(iso_name, Site)),
+    aes(x = Site, y = factor(clust.level, levels = c("low", "med", "high")), color = factor(clust.level, levels = c("low", "med", "high")))
+) +
+    geom_point() +
+    scale_color_brewer(palette = "Dark2", guide = "none") +
+    theme_bw() +
+    coord_flip() +
+    labs(y = "cluster level")
+
+#######################
+# ctmax
+d = dist(d_params.metadata.sp["ctmax.ssh"], method = "euclidean")
+ctmax.clust = hclust(d, method = "ward.D")
+plot(ctmax.clust)
+ggtree(ctmax.clust)
+
+HCPC(d_params.metadata.sp["ctmax.ssh"])
+
+ggtree(ctmax.clust)  %<+% select(d_params.metadata.sp, iso_name, ctmax.ssh) +
+    geom_tiplab(offset = 20, hjust = 0.75) +
+    geom_tippoint(aes(fill = ctmax.ssh), shape = 21, size = 3) +
+    #scale_color_gradient2(low = "#0571b0", mid = "white", high = "#ca0020")
+    scale_fill_gradientn(colors = c("#0571b0", "white", "#ca0020")) +
+    geom_vline(xintercept = -23, linetype = 2)
+
+ctmax.cut = cutree(ctmax.clust, 4)
+
+ctmax.cut.df = data.frame(iso_name = names(ctmax.cut), clust = ctmax.cut)
+ctmax.cut.df$clust.level = vector(mode = "character", length = nrow(ctmax.cut.df))
+ctmax.cut.df
+ctmax.cut.df[ctmax.cut.df$clust == 1, "clust.level"] = "med"
+ctmax.cut.df[ctmax.cut.df$clust == 2, "clust.level"] = "medhigh"
+ctmax.cut.df[ctmax.cut.df$clust == 3, "clust.level"] = "low"
+ctmax.cut.df[ctmax.cut.df$clust == 4, "clust.level"] = "high"
+
+write.csv(ctmax.cut.df, "data/LFMM/ctmax_clusters.csv", quote = F, row.names = F)
+
+ggplot(
+    left_join(ctmax.cut.df, d_params.metadata.sp %>% select(iso_name, Site)),
+    aes(x = Site, y = factor(clust.level, levels = c("low", "med", "medhigh", "high")), color = factor(clust.level, levels = c("low", "med", "medhigh", "high")))
+) +
+    geom_point(alpha = 0.25) +
+    scale_color_brewer(palette = "Dark2", guide = "none") +
+    theme_bw() +
+    coord_flip() +
+    labs(y = "cluster level")
+
+ctmax.df = left_join(ctmax.cut.df, d_params.metadata.sp %>% select(iso_name, Site))
+ggplot(
+    ctmax.df %>% group_by(Site, clust.level) %>% summarize(n = n()),
+    aes(x = Site, y = n, color = factor(clust.level, levels = c("low", "med", "high")))
+) +
+    geom_point() +
+    scale_color_brewer(palette = "Dark2") +
+    theme_bw() +
+    coord_flip() +
+    labs(y = "n", color = "clyster level")
+
+#######################
+# PC1
+d_params.metadata.sp["PC1"] = d_params.metadata.sp["PC1"]*-1
+d = dist(d_params.metadata.sp["PC1"], method = "euclidean")
+PC1.clust = hclust(d, method = "ward.D")
+plot(PC1.clust)
+ggtree(PC1.clust)
+
+HCPC(d_params.metadata.sp["PC1"])
+
+ggtree(PC1.clust)  %<+% select(d_params.metadata.sp, iso_name, PC1) +
+    geom_tiplab(offset = 20, hjust = 0.75) +
+    geom_tippoint(aes(fill = PC1), shape = 21, size = 3) +
+    #scale_color_gradient2(low = "#0571b0", mid = "white", high = "#ca0020")
+    scale_fill_gradientn(colors = c("#0571b0", "white", "#ca0020")) +
+    geom_vline(xintercept = -23, linetype = 2)
+
+PC1.cut = cutree(PC1.clust, 3)
+
+PC1.cut.df = data.frame(iso_name = names(PC1.cut), clust = PC1.cut)
+PC1.cut.df$clust.level = vector(mode = "character", length = nrow(PC1.cut.df))
+PC1.cut.df
+PC1.cut.df[PC1.cut.df$clust == 1, "clust.level"] = "high"
+PC1.cut.df[PC1.cut.df$clust == 2, "clust.level"] = "med"
+PC1.cut.df[PC1.cut.df$clust == 3, "clust.level"] = "low"
+
+
+write.csv(PC1.cut.df, "data/LFMM/PC1_clusters.csv", quote = F, row.names = F)
+
+ggplot(
+    left_join(PC1.cut.df, d_params.metadata.sp %>% select(iso_name, Site)),
+    aes(x = Site, y = factor(clust.level, levels = c("low", "med", "medhigh", "high")), color = factor(clust.level, levels = c("low", "med", "medhigh", "high")))
+) +
+    geom_point(alpha = 0.25) +
+    scale_color_brewer(palette = "Dark2", guide = "none") +
+    theme_bw() +
+    coord_flip() +
+    labs(y = "cluster level")
+
+PC1.df = left_join(PC1.cut.df, d_params.metadata.sp %>% select(iso_name, Site))
+ggplot(
+    PC1.df %>% group_by(Site, clust.level) %>% summarize(n = n()),
+    aes(x = Site, y = n, color = factor(clust.level, levels = c("low", "med", "high")))
+) +
+    geom_point() +
+    scale_color_brewer(palette = "Dark2") +
+    theme_bw() +
+    coord_flip() +
+    labs(y = "n", color = "clyster level")
