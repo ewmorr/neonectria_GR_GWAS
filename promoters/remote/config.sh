@@ -12,7 +12,7 @@ export THREADS=8
 #   RF   = dUTP / TruSeq stranded (read1 antisense to the gene)  -> hisat2 --rna-strandness RF, stringtie --rf
 #   FR   = ligation-type stranded (read1 sense)                  -> hisat2 --rna-strandness FR, stringtie --fr
 #   none = unstranded
-export STRANDED=none
+export STRANDED=RF
 
 # Fungal introns are short; limits intron size for hisat2
 export MAX_INTRON=3000
