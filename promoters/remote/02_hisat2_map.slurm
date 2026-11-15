@@ -14,7 +14,11 @@ cd $WORKDIR; mkdir -p bams logs
 [ -e hisat2_index/Nf.1.ht2 ] || hisat2-build -p $THREADS $GENOME hisat2_index/Nf > hisat2_index/build.log 2>&1
 read S R1 R2 < <(sed -n "${SLURM_ARRAY_TASK_ID}p" $SAMPLES)
 echo "sample $S  stranded=$STRANDED"
+for f in "$R1" "$R2" hisat2_index/Nf.1.ht2; do [ -s "$f" ] || { echo "ERROR: missing or empty: $f"; exit 1; }; done
+# On any failure show why: hisat2's stderr goes to a log file
+trap 'echo "FAILED; tail of logs/${S}.hisat2.log:"; tail -n 20 logs/${S}.hisat2.log' ERR
 hisat2 -p $THREADS --dta --max-intronlen $MAX_INTRON $(hisat2_strand_flag) -x hisat2_index/Nf -1 $R1 -2 $R2 \
     --summary-file logs/${S}.hisat2.summary 2> logs/${S}.hisat2.log \
   | samtools sort -@ 4 -m 2G -o bams/${S}.bam -
 samtools index bams/${S}.bam
+echo "done $S"; cat logs/${S}.hisat2.summary
