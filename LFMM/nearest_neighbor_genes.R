@@ -9,6 +9,7 @@
 library(dplyr)
 library(data.table)
 library(ggplot2)
+source("LFMM/annotation_helpers.R")
 
 covariates = c("topt", "t50low", "ctmax", "grpc1", "grpc2", "mat", "hdd4_growing")
 
@@ -31,6 +32,8 @@ ann = fread("data/genotype_dat/Neonectria_faginata.annotations.txt", sep = "\t",
             select = ann_cols, quote = "")
 setnames(ann, "TranscriptID", "transcriptID")
 genes = merge(genes, ann, by = "transcriptID", all.x = TRUE, sort = FALSE)
+em = load_emapper()   # eggNOG-mapper: description, KEGG ko/pathways/modules, COG, EC
+genes = merge(genes, em, by = "geneID", all.x = TRUE, sort = FALSE)
 setkey(genes, contig, start)
 
 ############################
