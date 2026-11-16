@@ -71,7 +71,7 @@ One-sided Fisher tests of GO, PFAM, InterPro, CAZyme family and secreted/proteas
 - **HDD4**: much weaker. Only **leucine-rich repeat** (PF13516; 2 genes vs 8) passes FDR 0.05 (0.016 in the coding-SNP background); LRR superfamily, DEAD/DEAH helicase, type 1 protein exporter (ABC) and other helicase/DNA-unwinding GO terms are at FDR 0.04-0.06 but rest on 2-3 genes each. **Secreted** is not enriched for HDD4 (10 of 79; FDR 0.25). So the cell-wall/secreted signal is specific to MAT.
 - Caveats: set sizes are small (the "significant" terms rest on 2-7 genes), GO terms are nested and redundant so the individual terms are not independent tests, and the HDD4 multi-SNP genes may be one signal (see clustering caveat above). Treat as hypothesis-generating.
 
-### Promoter-region classification (`promoters/`) — baseline, before RNA-seq TSS
+### Promoter-region classification (`promoters/`) — baseline, before RNA-seq TSS (superseded by the update below)
 
 `promoters/classify_snps_promoter.R` places every SNP relative to gene structure, respecting neighbour orientation. Run **without** RNA-seq transcript starts (start codon used as the TSS; no UTR classes), so promoter distances are measured from the ATG and are preliminary. Pipeline to get real TSS from the 8 RNA-seq samples (strandedness check -> HISAT2 -> StringTie -> per-gene TSS) is in `promoters/remote/` (SLURM), see `promoters/README.md`.
 
@@ -93,6 +93,23 @@ One-sided Fisher tests of GO, PFAM, InterPro, CAZyme family and secreted/proteas
 - **Note on covariate overlap**: all 6 ctmax SNPs/genes are also grpc1 hits, none are grpc2 hits, although ctmax loads on grpc2; worth checking how the grpc axes relate to ctmax in `parameter_correlations.R`.
 - Caveats as before: tiny gene counts behind most terms, redundant nested terms, and the nearest-gene sets mix weakly supported assignments.
 
+#### Update: with RNA-seq transcript starts (StringTie, library confirmed RF/dUTP)
+
+- **Support**: 9,927 of 11,871 genes (83.6%) have a StringTie transcript spanning the whole CDS; 7,262 of them in all 8 samples. Only 2,307 genes (23% of supported) have a 5' UTR extension and 2,227 a 3' extension; the median extension is 334 bp (5') and 267 bp (3'), IQR 135-718 bp, which is plausible for a fungus. For the other 77% of supported genes the transcript start equals the ATG. For these genes we cannot distinguish "no UTR" from "StringTie kept the annotated start", so promoter distances for them are still measured from the ATG (a lower bound on the real distance to the TSS).
+- Genome-wide SNP classes now: 77.8% distal intergenic, 9.8% coding span, 5.7% proximal promoter, 2.2% core promoter, 3.1% 3' flank, 0.7% 5' UTR, 0.7% 3' UTR.
+- **MAT** keeps its promoter enrichment: proximal promoter 10.3% vs 5.7% (p = 0.003), core 4.2% vs 2.2% (p = 0.03), and depletion of distal intergenic (61% vs 78%); also modest enrichment in 3' flank (5.7% vs 3.1%, p = 0.03). No enrichment in UTRs (3 five-prime, 2 three-prime SNPs).
+- **HDD4** keeps the opposite pattern: enriched in distal intergenic (85% vs 78%), depleted in proximal/core promoter (4.0%, 1.3%), 3' flank (1.6%, p = 4e-6) and coding.
+- **Growth covariates**: 6 SNPs sit in promoter windows (still no UTR hits), listed with the promoter gene and distance to the ATG/TSS:
+  - ctmax + grpc1, tig00000233:1221577, **109 bp** upstream of `_006964` (fg-gap repeat protein);
+  - grpc1, tig00000008:4382122, 181 bp upstream of `_002872`;
+  - grpc2, tig00000001:2927794 and 2927798, 184/188 bp upstream of `_000827` (integral membrane protein; bidirectional with its neighbour);
+  - topt + grpc2, tig00000071:3633506, 326 bp upstream of `_005663`;
+  - grpc2, tig00007946:449438, 285 bp upstream of `PMT1` (`_010391`, protein-O-mannosyltransferase, cell wall);
+  - grpc2, tig00000320:623522, 901 bp upstream of `_008587` (amino acid permease);
+  - grpc1, tig00000235:1374767, 799 bp upstream of `_007565`.
+  Whether any of these is a real regulatory variant is untested; next step would be motif evidence for these specific windows.
+- Output: `data/promoters/all_snps.region.txt`, region columns in `data/LFMM/annotations/<cov>.SNPs.gene_found.nearest_neighbors.txt`, `data/promoters/sig_vs_background_region_classes.txt`.
+
 ## To follow up
 
 - Check that the MAT secreted/cell-wall enrichment survives accounting for SNP density and gene length (e.g. permutation that preserves number of coding SNPs per gene) and for LD clustering.
@@ -101,4 +118,5 @@ One-sided Fisher tests of GO, PFAM, InterPro, CAZyme family and secreted/proteas
 - Account for SNP clustering (e.g. LD pruning or per-gene tests) before leaning on enrichment p-values for MAT/HDD4.
 - Decide how to handle intergenic SNPs (~83-93% of significant SNPs; nearest gene is often several kb away, so the nearest-gene assignment is a weak link to function). Options: distance cutoff for "likely regulatory" (e.g. within 1-2 kb upstream), per-gene upstream/downstream flags using strand, test whether sig SNPs are closer to genes than background, or treat as candidate regions rather than genes.
 - Process SweepFinder2 results (`LFMM/sweepfinder2_formating.sh`, `sweepfinder2_scan.slurm`; per-contig CLR outputs): define a CLR significance threshold, call sweep regions, and test overlap with LFMM-significant SNPs/genes.
-- Run the promoter pipeline on the cluster (`promoters/README.md`), then re-run `classify_snps_promoter.R` with real TSS and re-test promoter enrichment; add motif evidence (STREME/FIMO on upstream regions) and, if wanted, conservation.
+- (Done: pipeline run, TSS table in `data/promoters/`.) Add motif evidence (STREME/FIMO on upstream regions) and, if wanted, conservation.
+- Refine TSS for the ~77% of supported genes where StringTie kept the annotated start: use per-base strand-specific coverage upstream of the ATG from the BAMs (on the cluster) to call 5' UTR extensions, or cross-check against the Trinity assembly (minimap2) 5' ends. Optional `funannotate update` only if gene-model errors turn out to be common (see discussion in session notes).
